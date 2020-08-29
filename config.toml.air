@@ -1,0 +1,20 @@
+baseURL = "http://example.org/"
+languageCode = "en-us"
+title = "NOTHING"
+
+
+[params]
+  description = "好读码，不求甚解；每有会意，便欣然忘食。"
+  cover = "images/user.jpg"
+  author = "soyum"
+  authorlocation = ""
+  authorwebsite = "https://soyum2222.github.io"
+  bio= "my bio"
+  googleAnalyticsUserID = ""
+  # Optional RSS-Link, if not provided it defaults to the standard index.xml
+  RSSLink = ""
+  githubName = "soyum2222"
+  twitterName = ""
+  # set true if you are not proud of using Hugo (true will hide the footer note "Proudly published with HUGO.....")
+  hideHUGOSupport = false
+  mainSections = ["post"]

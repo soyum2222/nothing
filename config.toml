@@ -1,3 +1,19 @@
-baseURL = "http://example.org/"
-languageCode = "en-us"
+languageCode = "zh-CN"
 title = "NOTHING"
+
+
+theme="material-design"
+baseurl = "https://soyum2222.github.io"
+MetaDataFormat = "toml"
+paginate = 9 # To specify a multiple of 3
+copyright = "© 2015 Copyright Text"
+summaryLength = 50
+[params]
+  description = "好读码，不求甚解；每有会意，便欣然忘食。" # optional
+  home = "http://soyum2222.github.io"
+  github = "soyum2222" # optional
+  headerCover = "images/default.png" # optional
+  footerCover = "images/default.png" # optional
+
+[permalinks]
+  post = "/:year/:month/:day/:title/" # optional
