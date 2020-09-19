@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<style>
+    .menu {
+    color : #eeeeee;
+    padding-right: 20px;
+    }
+
+</style>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=no"/>
+  <title>go 中的 Monkey Patching</title>
+  <link href="https://soyum2222.github.io/css/materialize.min.css" type="text/css" rel="stylesheet" media="screen,projection"/>
+  <link href="https://soyum2222.github.io/css/style.css" type="text/css" rel="stylesheet" media="screen,projection"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.6/styles/default.min.css">
+  <style type="text/css">
+  
+    footer.page-footer{background-image: url(https://soyum2222.github.io/images/default.png);}
+  
+  </style>
+</head>
+<body>
+  <ul id="slide-out" class="side-nav">
+    <li><a href="https://soyum2222.github.io"><i class="mdi-action-home left"></i>Home<i class="mdi-hardware-keyboard-arrow-right right"></i></a></li>
+    <li><a href="https://soyum2222.github.io/categories"><i class="mdi-action-perm-media left"></i>Categories<i class="mdi-hardware-keyboard-arrow-right right"></i></a></li>
+    <li><a href="https://soyum2222.github.io/tags"><i class="mdi-action-loyalty left"></i>Tags<i class="mdi-hardware-keyboard-arrow-right right"></i></a></li>
+  </ul>
+  <div id="index-banner" class="parallax-container">
+    <div class="section no-pad-bot">
+        <div class="container">
+            
+            <h1 class="header center teal-text text-lighten-2">NOTHING</h1>
+            <div class="row center">
+                <h5 class="header col s12 light">好读码，不求甚解；每有会意，便欣然忘食。</h5>
+            </div>
+            <div style="padding-top: 150px;padding-left: 10px;">
+                
+                <a href="http://soyum2222.github.io" class="menu">HOME</a>
+                
+
+                
+                <a href="https://github.com/soyum2222" class="menu">GITHUB</a>
+                
+
+            </div>
+        </div>
+    </div>
+    <div class="parallax">
+        
+        <img src="https://soyum2222.github.io/images/default.png">
+        
+    </div>
+</div>
+
+
+
+<div class="container">
+  <div class="section">
+
+    <div class="row">
+      <div class="col s12">
+        <div class="card-panel">
+          <h4>go 中的 Monkey Patching</h4>
+          <p>
+           
+          </p>
+          <p><p>翻译自 <a href="https://bou.ke/blog/monkey-patching-in-go/">https://bou.ke/blog/monkey-patching-in-go/</a></p>
+<p>很多人认为 monkey Patching 只能在动态语言中，像 Ruby 和 Python,但是并不是这样,计算机是一种愚蠢的机器,
+我们始终能让他做我们所想的事情！让我们看下Go函数是如何工作的，以及如何在运行时修改它。这篇文章会使用大量的 intel 汇编，
+所以我假设你已经掌握，或者在阅读时会参考查阅<a href="https://software.intel.com/en-us/articles/introduction-to-x64-assembly">相关资料</a>。</p>
+<p>如果你它如何工作的不感兴趣，并且你只想使用monkey 补丁 ，那么你可以找到<a href="https://github.com/bouk/monkey">这个</a>库</p>
+<p>让我看下反汇编后会是什么样子。</p>
+<pre><code>package main
+
+func a() int { return 1 }
+
+func main() {
+  print(a())
+}
+</code></pre><p>通过Hopper编译后，我们看到上诉代码生成了这样的汇编。</p>
+<p><img src="/images/hopper-1.png" alt="hopper"></p>
+<p>我将参考上面图片的左边展示的各种指令的地址。</p>
+<p>我们的代码从main.main 开始，指令0x2010 到 0x2026 设置了栈。你可以通过<a href="https://dave.cheney.net/2013/06/02/why-is-a-goroutines-stack-infinite">这里</a>获得更多关于此的信息。此文中，我将忽视这段代码。</p>
+<p>0x202a处是在调用函数 main.a ，0x2000处 只是简单的把0x1移动到栈上 然后返回，0x202f到0x2037 则是将该值传递给函数runtime.printint。</p>
+<p>非常简单！现在让我看下一个函数的值在go中是如何实现的。</p>
+<h5 id="函数值在go中的机制">函数值在GO中的机制</h5>
+<pre><code>package main
+
+import (
+  &quot;fmt&quot;
+  &quot;unsafe&quot;
+)
+
+func a() int { return 1 }
+
+func main() {
+  f := a
+  fmt.Printf(&quot;0x%x\n&quot;, *(*uintptr)(unsafe.Pointer(&amp;f)))
+}
+</code></pre><p>在第11行我将函数a赋值给了f，这里的意思是执行f()的时候将调用函数a。然后我使用<a href="https://golang.org/pkg/unsafe/">unsafe</a>包直接读处f存储的值。如果你有C语言的背景
+你可能想到f是一个指向a的函数指针，然后因此这段代码打印出0x2000（上面的图片中main.a的位子），
+当我在我的机器上运行后，我得到值0x102c38，
+这是一个地址甚至不接近我们的代码！反编译后，这是上面代码第11行发生的事情:</p>
+<p><img src="/images/hopper-2.png" alt="hopper2"></p>
+<p>它应用了一个叫main.a.f的东西，当我们看到main.a.f ，是下面这样:</p>
+<p><img src="/images/hopper-3.png" alt="hopper3"></p>
+<p>哈！main.a.f 就是 0x102c38 他的值是 0x2000，这是main.a的地址。f 不像是一个函数的指针，但是他是一个函数指针的指针。
+知道了这一点让我们来修改下代码。</p>
+<pre><code>package main
+ 
+import (
+  &quot;fmt&quot;
+  &quot;unsafe&quot;
+)
+ 
+func a() int { return 1 }
+ 
+func main() {
+  f := a
+  fmt.Printf(&quot;0x%x\n&quot;, **(**uintptr)(unsafe.Pointer(&amp;f)))
+}
+</code></pre><p>现在打印了0x2000，符合预期。我们找到一个线索来解释为什么这里要这样实现，<a href="https://github.com/golang/go/blob/e9d9d0befc634f6e9f906b5ef7476fbd7ebd25e3/src/runtime/runtime2.go#L75-L78">点击这里</a>。Go函数的值可以包含额外的信息，这就是闭包和
+绑定函数的实现方式。
+让我来看下，调用一个函数值是如何工作的。我将赋值后调用f</p>
+<pre><code>package main
+
+func a() int { return 1 }
+
+func main() {
+	f := a
+	f()
+}
+	
+</code></pre><p>反编译后得到：</p>
+<p><img src="/images/hopper-4.png" alt="hopper-4"></p>
+<p>main.a.f 指向的值被加载到rdx中，然后rdx指向的值被加载到rbx中,然后调用了rbx。函数值的地址总是加载到rdx中。
+被调用的代码可以利用这点加载任何它所需要的额外信息。这些额外信息是指向一个绑定函数的实例和一个闭包的匿名函数。
+如果你想了解得更多我建议你可以自己反编译去试一下。</p>
+<h4 id="在运行时替换一个函数">在运行时替换一个函数</h4>
+<p>我们想实现的是下面这段代码能打印出 数字2</p>
+<pre><code>package main
+
+func a() int { return 1 }
+func b() int { return 2 }
+
+func main() {
+	replace(a, b)
+	print(a())
+}
+</code></pre><p>现在我们应该如何实现replace函数? 我们需要修改函数 a 跳转到 b 的代码，而不是执行a原本的代码主体。
+实际上我们需要替换的是，将b的函数值加载到rdx 然后跳转到rdx所指向的地方。</p>
+<pre><code>	mov rdx, main.b.f ; 48 C7 C2 ?? ?? ?? ??
+	jmp [rdx] ; FF 22
+</code></pre><p>我把编译后生成机器代码写在旁边（你可以轻松的使用<a href="https://defuse.ca/online-x86-assembler.htm">在线汇编编辑器</a>来编写汇编）。
+编写一个生成这样代码的函数很简单，像这样：</p>
+<pre><code>func assembleJump(f func() int) []byte {
+  funcVal := *(*uintptr)(unsafe.Pointer(&amp;f))
+  return []byte{
+    0x48, 0xC7, 0xC2,
+    byte(funcval &gt;&gt; 0),
+    byte(funcval &gt;&gt; 8),
+    byte(funcval &gt;&gt; 16),
+    byte(funcval &gt;&gt; 24), // MOV rdx, funcVal
+    0xFF, 0x22,          // JMP [rdx]
+  }
+}
+</code></pre><p>现在我们一切就绪，我们需要替换a的函数体来跳转到b！
+这段代码尝试将机器代码直接赋值到函数体的位子。</p>
+<pre><code>package main
+
+import (
+	&quot;syscall&quot;
+	&quot;unsafe&quot;
+)
+
+func a() int { return 1 }
+func b() int { return 2 }
+
+func rawMemoryAccess(b uintptr) []byte {
+	return (*(*[0xFF]byte)(unsafe.Pointer(b)))[:]
+}
+
+func assembleJump(f func() int) []byte {
+	funcVal := *(*uintptr)(unsafe.Pointer(&amp;f))
+	return []byte{
+		0x48, 0xC7, 0xC2,
+		byte(funcVal &gt;&gt; 0),
+		byte(funcVal &gt;&gt; 8),
+		byte(funcVal &gt;&gt; 16),
+		byte(funcVal &gt;&gt; 24), // MOV rdx, funcVal
+		0xFF, 0x22,          // JMP [rdx]
+	}
+}
+
+func replace(orig, replacement func() int) {
+	bytes := assembleJump(replacement)
+	functionLocation := **(**uintptr)(unsafe.Pointer(&amp;orig))
+	window := rawMemoryAccess(functionLocation)
+	
+	copy(window, bytes)
+}
+
+func main() {
+	replace(a, b)
+	print(a())
+}
+</code></pre><p>运行这段代码却不起作用，并且导致了分段错误。这是因为载入二进制在<a href="https://en.wikipedia.org/wiki/Segmentation_fault#Writing_to_read-only_memory">默认情况下不可写</a>。
+我们可以使用 mprotect syscall 来关闭这个保护，最后我就是这样做的，函数a被函数b替换了，并打印出了2</p>
+<pre><code>package main
+
+import (
+	&quot;syscall&quot;
+	&quot;unsafe&quot;
+)
+
+func a() int { return 1 }
+func b() int { return 2 }
+
+func getPage(p uintptr) []byte {
+	return (*(*[0xFFFFFF]byte)(unsafe.Pointer(p &amp; ^uintptr(syscall.Getpagesize()-1))))[:syscall.Getpagesize()]
+}
+
+func rawMemoryAccess(b uintptr) []byte {
+	return (*(*[0xFF]byte)(unsafe.Pointer(b)))[:]
+}
+
+func assembleJump(f func() int) []byte {
+	funcVal := *(*uintptr)(unsafe.Pointer(&amp;f))
+	return []byte{
+		0x48, 0xC7, 0xC2,
+		byte(funcVal &gt;&gt; 0),
+		byte(funcVal &gt;&gt; 8),
+		byte(funcVal &gt;&gt; 16),
+		byte(funcVal &gt;&gt; 24), // MOV rdx, funcVal
+		0xFF, 0x22,          // JMP rdx
+	}
+}
+
+func replace(orig, replacement func() int) {
+	bytes := assembleJump(replacement)
+	functionLocation := **(**uintptr)(unsafe.Pointer(&amp;orig))
+	window := rawMemoryAccess(functionLocation)
+	
+	page := getPage(functionLocation)
+	syscall.Mprotect(page, syscall.PROT_READ|syscall.PROT_WRITE|syscall.PROT_EXEC)
+	
+	copy(window, bytes)
+}
+
+func main() {
+	replace(a, b)
+	print(a())
+}
+</code></pre><h4 id="封装成库">封装成库</h4>
+<p>我把上边的代码放入了一个<a href="https://github.com/bouk/monkey">易用的库中</a>,它支持32位，反向修补程序和修补实例函数。我写了几个例子并把它们放在README中。</p>
+<h4 id="最后">最后</h4>
+<p>有志者事竟成！一个程序可以在运行时修改自己，这使得我们可以实现一些很酷的技巧，就像 monkey patching。</p>
+<p>我希望你能从这篇文章学到一些对你有用的东西。</p>
+<p><a href="https://news.ycombinator.com/item?id=9290917">原作者的 Hacker News </a></p>
+<p><a href="https://www.reddit.com/r/golang/comments/30try1/monkey_patching_in_go/">原作者的 Reddit</a></p>
+</p>
+          <p>5 Sep 2020
+            
+          </p>
+          
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col s3 m1">
+      
+        <a class="btn-floating btn-large waves-effect waves-light" href="https://soyum2222.github.io/panic/"><i class="mdi-navigation-arrow-back"></i></a>
+      
+      </div>
+      <div class="col s6 m10 center">&nbsp</div>
+      <div class="col s3 m1">
+      
+        <a class="btn-floating btn-large disabled"><i class="mdi-navigation-arrow-forward"></i></a>
+      
+      </div>
+    </div>
+
+  </div>
+</div>
+
+  <footer class="page-footer">
+    <div class="footer-copyright">
+      <div class="container">
+      © 2015 Copyright Text
+      <div class="right">Design <a class="grey-text text-lighten-4" href="http://pdevty.github.io/blog/">pdevty</a></div>
+      </div>
+    </div>
+  </footer>
+  <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+  <script src="https://soyum2222.github.io/js/materialize.min.js"></script>
+  <script src="https://soyum2222.github.io/js/init.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.6/highlight.min.js"></script>
+  <script>hljs.initHighlightingOnLoad();</script>
+  
+
+  </body>
+</html>
+

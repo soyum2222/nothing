@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+  xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  
+  <url>
+    <loc>https://soyum2222.github.io/monkey/</loc>
+    <lastmod>2020-09-05T12:12:35+08:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>https://soyum2222.github.io/panic/</loc>
+    <lastmod>2020-08-29T13:35:42+08:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>https://soyum2222.github.io/defer/</loc>
+    <lastmod>2020-08-29T00:41:00+08:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>https://soyum2222.github.io/getip/</loc>
+    <lastmod>2020-08-27T23:04:25+08:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>https://soyum2222.github.io/categories/</loc>
+  </url>
+  
+  <url>
+    <loc>https://soyum2222.github.io/</loc>
+  </url>
+  
+  <url>
+    <loc>https://soyum2222.github.io/tags/</loc>
+  </url>
+  
+</urlset>

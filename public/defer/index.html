@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<style>
+    .menu {
+    color : #eeeeee;
+    padding-right: 20px;
+    }
+
+</style>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=no"/>
+  <title>defer 源码阅读 （go 1.13）</title>
+  <link href="https://soyum2222.github.io/css/materialize.min.css" type="text/css" rel="stylesheet" media="screen,projection"/>
+  <link href="https://soyum2222.github.io/css/style.css" type="text/css" rel="stylesheet" media="screen,projection"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.6/styles/default.min.css">
+  <style type="text/css">
+  
+    footer.page-footer{background-image: url(https://soyum2222.github.io/images/default.png);}
+  
+  </style>
+</head>
+<body>
+  <ul id="slide-out" class="side-nav">
+    <li><a href="https://soyum2222.github.io"><i class="mdi-action-home left"></i>Home<i class="mdi-hardware-keyboard-arrow-right right"></i></a></li>
+    <li><a href="https://soyum2222.github.io/categories"><i class="mdi-action-perm-media left"></i>Categories<i class="mdi-hardware-keyboard-arrow-right right"></i></a></li>
+    <li><a href="https://soyum2222.github.io/tags"><i class="mdi-action-loyalty left"></i>Tags<i class="mdi-hardware-keyboard-arrow-right right"></i></a></li>
+  </ul>
+  <div id="index-banner" class="parallax-container">
+    <div class="section no-pad-bot">
+        <div class="container">
+            
+            <h1 class="header center teal-text text-lighten-2">NOTHING</h1>
+            <div class="row center">
+                <h5 class="header col s12 light">好读码，不求甚解；每有会意，便欣然忘食。</h5>
+            </div>
+            <div style="padding-top: 150px;padding-left: 10px;">
+                
+                <a href="http://soyum2222.github.io" class="menu">HOME</a>
+                
+
+                
+                <a href="https://github.com/soyum2222" class="menu">GITHUB</a>
+                
+
+            </div>
+        </div>
+    </div>
+    <div class="parallax">
+        
+        <img src="https://soyum2222.github.io/images/default.png">
+        
+    </div>
+</div>
+
+
+
+<div class="container">
+  <div class="section">
+
+    <div class="row">
+      <div class="col s12">
+        <div class="card-panel">
+          <h4>defer 源码阅读 （go 1.13）</h4>
+          <p>
+           
+          </p>
+          <p><pre><code> 直接上代码
+</code></pre>
+<pre><code class="language-$xslt" data-lang="$xslt">
+package main
+
+import &quot;fmt&quot;
+
+func main() {
+   defer func() {
+       fmt.Println(&quot;defer&quot;)
+   }()
+}
+
+</code></pre><pre><code>反编译
+</code></pre>
+<pre><code>&quot;&quot;.main STEXT size=113 args=0x0 locals=0x48
+	0x0000 00000 (defer.go:5)	TEXT	&quot;&quot;.main(SB), ABIInternal, $72-0
+	0x0000 00000 (defer.go:5)	MOVQ	TLS, CX
+	0x0009 00009 (defer.go:5)	MOVQ	(CX)(TLS*2), CX
+	0x0010 00016 (defer.go:5)	CMPQ	SP, 16(CX)
+	0x0014 00020 (defer.go:5)	JLS	106
+	0x0016 00022 (defer.go:5)	SUBQ	$72, SP
+	0x001a 00026 (defer.go:5)	MOVQ	BP, 64(SP)
+	0x001f 00031 (defer.go:5)	LEAQ	64(SP), BP
+	0x0024 00036 (defer.go:5)	FUNCDATA	$0, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
+	0x0024 00036 (defer.go:5)	FUNCDATA	$1, gclocals·33cdeccccebe80329f1fdbee7f5874cb(SB)
+	0x0024 00036 (defer.go:5)	FUNCDATA	$2, gclocals·9fb7f0986f647f17cb53dda1484e0f7a(SB)
+	0x0024 00036 (defer.go:6)	PCDATA	$0, $0
+	0x0024 00036 (defer.go:6)	PCDATA	$1, $0
+	0x0024 00036 (defer.go:6)	MOVL	$0, &quot;&quot;..autotmp_1+8(SP)
+	0x002c 00044 (defer.go:6)	PCDATA	$0, $1
+	0x002c 00044 (defer.go:6)	LEAQ	&quot;&quot;.main.func1·f(SB), AX
+	0x0033 00051 (defer.go:6)	PCDATA	$0, $0
+	0x0033 00051 (defer.go:6)	MOVQ	AX, &quot;&quot;..autotmp_1+32(SP)
+	0x0038 00056 (defer.go:6)	PCDATA	$0, $1
+	0x0038 00056 (defer.go:6)	LEAQ	&quot;&quot;..autotmp_1+8(SP), AX
+	0x003d 00061 (defer.go:6)	PCDATA	$0, $0
+	0x003d 00061 (defer.go:6)	MOVQ	AX, (SP)
+	0x0041 00065 (defer.go:6)	CALL	runtime.deferprocStack(SB)
+	0x0046 00070 (defer.go:6)	TESTL	AX, AX
+	0x0048 00072 (defer.go:6)	JNE	90
+	0x004a 00074 (defer.go:9)	XCHGL	AX, AX
+	0x004b 00075 (defer.go:9)	CALL	runtime.deferreturn(SB)
+	0x0050 00080 (defer.go:9)	MOVQ	64(SP), BP
+	0x0055 00085 (defer.go:9)	ADDQ	$72, SP
+	0x0059 00089 (defer.go:9)	RET
+	0x005a 00090 (defer.go:6)	XCHGL	AX, AX
+	0x005b 00091 (defer.go:6)	CALL	runtime.deferreturn(SB)
+	0x0060 00096 (defer.go:6)	MOVQ	64(SP), BP
+	0x0065 00101 (defer.go:6)	ADDQ	$72, SP
+	0x0069 00105 (defer.go:6)	RET
+	0x006a 00106 (defer.go:6)	NOP
+	0x006a 00106 (defer.go:5)	PCDATA	$1, $-1
+	0x006a 00106 (defer.go:5)	PCDATA	$0, $-1
+	0x006a 00106 (defer.go:5)	CALL	runtime.morestack_noctxt(SB)
+	0x006f 00111 (defer.go:5)	JMP	0
+</code></pre><pre><code>找出defer 相关的 runtime 方法  `deferprocStack`  `deferreturn`，开读
+</code></pre>
+<pre><code class="language-$xslt" data-lang="$xslt">// deferprocStack queues a new deferred function with a defer record on the stack.
+// The defer record must have its siz and fn fields initialized.
+// All other fields can contain junk.
+// The defer record must be immediately followed in memory by the arguments of the defer.
+// Nosplit because the arguments on the stack won't be scanned until the defer record is spliced into the gp._defer list.
+//go:nosplit
+func deferprocStack(d *_defer) {
+	gp := getg()
+
+    // 当前运行的goroutine
+	if gp.m.curg != gp {
+		// go code on the system stack can't defer
+		throw(&quot;defer on system stack&quot;)
+	}
+	// siz and fn are already set.
+	// The other fields are junk on entry to deferprocStack and
+	// are initialized here.
+	d.started = false
+	d.heap = false
+	d.sp = getcallersp()
+	d.pc = getcallerpc()
+	// The lines below implement:
+	//   d.panic = nil
+	//   d.link = gp._defer
+	//   gp._defer = d
+	// But without write barriers. The first two are writes to
+	// the stack so they don't need a write barrier, and furthermore
+	// are to uninitialized memory, so they must not use a write barrier.
+	// The third write does not require a write barrier because we
+	// explicitly mark all the defer structures, so we don't need to
+	// keep track of pointers to them with a write barrier.
+	*(*uintptr)(unsafe.Pointer(&amp;d._panic)) = 0
+	*(*uintptr)(unsafe.Pointer(&amp;d.link)) = uintptr(unsafe.Pointer(gp._defer))
+	*(*uintptr)(unsafe.Pointer(&amp;gp._defer)) = uintptr(unsafe.Pointer(d))
+
+	return0()
+	// No code can go here - the C return register has
+	// been set and must not be clobbered.
+}
+
+
+</code></pre><p>deferprocStack 的参数是一个_defer但是我们并没有传，那么这个值是从哪里来的呢？我们回去看下汇编</p>
+<pre><code>            MOVL	$0, &quot;&quot;..autotmp_1+8(SP)
+            PCDATA	$0, $1
+            LEAQ	&quot;&quot;.main.func1·f(SB), AX
+            PCDATA	$0, $0
+            MOVQ	AX, &quot;&quot;..autotmp_1+32(SP)
+            PCDATA	$0, $1
+            LEAQ	&quot;&quot;..autotmp_1+8(SP), AX
+            PCDATA	$0, $0
+            MOVQ	AX, (SP)
+            CALL	runtime.deferprocStack(SB)
+</code></pre>
+<p>第五行 AX, &ldquo;&rdquo;..autotmp_1+32(SP) 把AX的值放入SP+32这个地址中，AX寄存器可以从第三行看到，</p>
+<p>是func1的地址，然后看倒数第二行MOVQ	AX, (SP) 和第一行 MOVL	$0, &ldquo;&rdquo;..autotmp_1+8(SP) ，</p>
+<p>deferprocStack的参数是一个_defer指针 sp+8 地址就是作为这个结构体参数的首地址。</p>
+<p>首地址为SP+8。那么SP+32 func1 方法的地址，偏移量为24。</p>
+<pre><code>    type _defer struct {
+        siz     int32 // 占用4字节  //偏移0
+        started bool  // 占用1字节  //偏移4
+        heap    bool  // 占用1字节  //偏移6
+        // 内存对齐 这里会补上两个2节
+        sp      uintptr // 64位机器下是8字节 //偏移8
+        pc      uintptr // 64位机器下是8字节 //偏移16
+        fn      *funcval // 64位机器下是8字节 //偏移24 
+        _panic  *_panic  //  64位机器下是8字节
+        link    *_defer  // 64位机器下是8字节
+    }
+</code></pre>
+<p>可以发现fn 正好是24偏移字节的位置，根据以上猜测sp+32位子存放的是func地址sp+0存放siz参数。siz参数是哪里来的呢，是sp+8的地址，<code>sp+8</code>的地址由第一行可以看到是0。</p>
+<p>(这个地方如果使用goland的debug打入断点去跟踪<code>d.siz</code>，结果会与汇编不同，猜测是在编译时做了优化，如果用dlv或者gdb工具，debug汇编代码能验证上面的推论。)</p>
+<p>搞清楚了这一点，deferprocStack方法的内容就变得索然无味，就是对_defer的其他几个 &ldquo;junk&rdquo; 字段做初始化赋值。然后把他放入到当前G中。</p>
+<p>deferprocStack搞清楚了我们接下来看deferreturn</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go"><span style="color:#75715e">// Run a deferred function if there is one.
+</span><span style="color:#75715e">// The compiler inserts a call to this at the end of any
+</span><span style="color:#75715e">// function which calls defer.
+</span><span style="color:#75715e">// If there is a deferred function, this will call runtime·jmpdefer,
+</span><span style="color:#75715e">// which will jump to the deferred function such that it appears
+</span><span style="color:#75715e">// to have been called by the caller of deferreturn at the point
+</span><span style="color:#75715e">// just before deferreturn was called. The effect is that deferreturn
+</span><span style="color:#75715e">// is called again and again until there are no more deferred functions.
+</span><span style="color:#75715e">// Cannot split the stack because we reuse the caller&#39;s frame to
+</span><span style="color:#75715e">// call the deferred function.
+</span><span style="color:#75715e"></span>
+<span style="color:#75715e">// The single argument isn&#39;t actually used - it just has its address
+</span><span style="color:#75715e">// taken so it can be matched against pending defers.
+</span><span style="color:#75715e">//go:nosplit
+</span><span style="color:#75715e"></span><span style="color:#66d9ef">func</span> <span style="color:#a6e22e">deferreturn</span>(<span style="color:#a6e22e">arg0</span> <span style="color:#66d9ef">uintptr</span>) {
+	<span style="color:#a6e22e">gp</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">getg</span>()
+	<span style="color:#a6e22e">d</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">gp</span>.<span style="color:#a6e22e">_defer</span>
+	<span style="color:#66d9ef">if</span> <span style="color:#a6e22e">d</span> <span style="color:#f92672">==</span> <span style="color:#66d9ef">nil</span> {
+		<span style="color:#66d9ef">return</span>
+	}
+	<span style="color:#a6e22e">sp</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">getcallersp</span>()
+	<span style="color:#66d9ef">if</span> <span style="color:#a6e22e">d</span>.<span style="color:#a6e22e">sp</span> <span style="color:#f92672">!=</span> <span style="color:#a6e22e">sp</span> {
+		<span style="color:#66d9ef">return</span>
+	}
+
+	<span style="color:#75715e">// Moving arguments around.
+</span><span style="color:#75715e"></span>	<span style="color:#75715e">//
+</span><span style="color:#75715e"></span>	<span style="color:#75715e">// Everything called after this point must be recursively
+</span><span style="color:#75715e"></span>	<span style="color:#75715e">// nosplit because the garbage collector won&#39;t know the form
+</span><span style="color:#75715e"></span>	<span style="color:#75715e">// of the arguments until the jmpdefer can flip the PC over to
+</span><span style="color:#75715e"></span>	<span style="color:#75715e">// fn.
+</span><span style="color:#75715e"></span>	<span style="color:#66d9ef">switch</span> <span style="color:#a6e22e">d</span>.<span style="color:#a6e22e">siz</span> {
+	<span style="color:#66d9ef">case</span> <span style="color:#ae81ff">0</span>:
+		<span style="color:#75715e">// Do nothing.
+</span><span style="color:#75715e"></span>	<span style="color:#66d9ef">case</span> <span style="color:#a6e22e">sys</span>.<span style="color:#a6e22e">PtrSize</span>:
+		<span style="color:#f92672">*</span>(<span style="color:#f92672">*</span><span style="color:#66d9ef">uintptr</span>)(<span style="color:#a6e22e">unsafe</span>.<span style="color:#a6e22e">Pointer</span>(<span style="color:#f92672">&amp;</span><span style="color:#a6e22e">arg0</span>)) = <span style="color:#f92672">*</span>(<span style="color:#f92672">*</span><span style="color:#66d9ef">uintptr</span>)(<span style="color:#a6e22e">deferArgs</span>(<span style="color:#a6e22e">d</span>))
+	<span style="color:#66d9ef">default</span>:
+		<span style="color:#a6e22e">memmove</span>(<span style="color:#a6e22e">unsafe</span>.<span style="color:#a6e22e">Pointer</span>(<span style="color:#f92672">&amp;</span><span style="color:#a6e22e">arg0</span>), <span style="color:#a6e22e">deferArgs</span>(<span style="color:#a6e22e">d</span>), uintptr(<span style="color:#a6e22e">d</span>.<span style="color:#a6e22e">siz</span>))
+	}
+	<span style="color:#a6e22e">fn</span> <span style="color:#f92672">:=</span> <span style="color:#a6e22e">d</span>.<span style="color:#a6e22e">fn</span>
+	<span style="color:#a6e22e">d</span>.<span style="color:#a6e22e">fn</span> = <span style="color:#66d9ef">nil</span>
+	<span style="color:#a6e22e">gp</span>.<span style="color:#a6e22e">_defer</span> = <span style="color:#a6e22e">d</span>.<span style="color:#a6e22e">link</span>
+	<span style="color:#a6e22e">freedefer</span>(<span style="color:#a6e22e">d</span>)
+	<span style="color:#a6e22e">jmpdefer</span>(<span style="color:#a6e22e">fn</span>, uintptr(<span style="color:#a6e22e">unsafe</span>.<span style="color:#a6e22e">Pointer</span>(<span style="color:#f92672">&amp;</span><span style="color:#a6e22e">arg0</span>)))
+}
+
+</code></pre></div><p>注释第一行说明了，这个deferreturn这个方法是编译器自动添加。具体干的事情其实就是把defer执行defer方法，但是它是怎么执行的呢？可以看到最后它调用了<code>jmpdefer</code> 方法，这个方法是使用汇编实现的，那么就到了喜闻乐见的读汇编环节了。</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">
+<span style="color:#75715e">// func jmpdefer(fv *funcval, argp uintptr)
+</span><span style="color:#75715e">// argp is a caller SP.
+</span><span style="color:#75715e">// called from deferreturn.
+</span><span style="color:#75715e">// 1. pop the caller
+</span><span style="color:#75715e">// 2. sub 5 bytes from the callers return
+</span><span style="color:#75715e">// 3. jmp to the argument
+</span><span style="color:#75715e"></span><span style="color:#a6e22e">TEXT</span> <span style="color:#a6e22e">runtime</span><span style="color:#960050;background-color:#1e0010">·</span><span style="color:#a6e22e">jmpdefer</span>(<span style="color:#a6e22e">SB</span>), <span style="color:#a6e22e">NOSPLIT</span>, <span style="color:#960050;background-color:#1e0010">$</span><span style="color:#ae81ff">0</span><span style="color:#f92672">-</span><span style="color:#ae81ff">16</span>
+	<span style="color:#a6e22e">MOVQ</span>	<span style="color:#a6e22e">fv</span><span style="color:#f92672">+</span><span style="color:#ae81ff">0</span>(<span style="color:#a6e22e">FP</span>), <span style="color:#a6e22e">DX</span>	<span style="color:#75715e">// fn
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">MOVQ</span>	<span style="color:#a6e22e">argp</span><span style="color:#f92672">+</span><span style="color:#ae81ff">8</span>(<span style="color:#a6e22e">FP</span>), <span style="color:#a6e22e">BX</span>	<span style="color:#75715e">// caller sp
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">LEAQ</span>	<span style="color:#f92672">-</span><span style="color:#ae81ff">8</span>(<span style="color:#a6e22e">BX</span>), <span style="color:#a6e22e">SP</span>	<span style="color:#75715e">// caller sp after CALL
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">MOVQ</span>	<span style="color:#f92672">-</span><span style="color:#ae81ff">8</span>(<span style="color:#a6e22e">SP</span>), <span style="color:#a6e22e">BP</span>	<span style="color:#75715e">// restore BP as if deferreturn returned (harmless if framepointers not in use)
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">SUBQ</span>	<span style="color:#960050;background-color:#1e0010">$</span><span style="color:#ae81ff">5</span>, (<span style="color:#a6e22e">SP</span>)	<span style="color:#75715e">// return to CALL again
+</span><span style="color:#75715e"></span>	<span style="color:#a6e22e">MOVQ</span>	<span style="color:#ae81ff">0</span>(<span style="color:#a6e22e">DX</span>), <span style="color:#a6e22e">BX</span>
+	<span style="color:#a6e22e">JMP</span>	<span style="color:#a6e22e">BX</span>	<span style="color:#75715e">// but first run the deferred function
+</span><span style="color:#75715e"></span>
+</code></pre></div><p>这里需要结合前面反编译生成的汇编来结合阅读，理解上下文。前面反编译的汇编我们只用关注下面几句就行。</p>
+<div class="highlight"><pre style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4"><code class="language-go" data-lang="go">   <span style="color:#ae81ff">0x0024</span> <span style="color:#ae81ff">00036</span> (<span style="color:#66d9ef">defer</span>.<span style="color:#66d9ef">go</span>:<span style="color:#ae81ff">6</span>)	<span style="color:#a6e22e">MOVL</span>	<span style="color:#960050;background-color:#1e0010">$</span><span style="color:#ae81ff">0</span>, <span style="color:#e6db74">&#34;&#34;</span>..<span style="color:#a6e22e">autotmp_1</span><span style="color:#f92672">+</span><span style="color:#ae81ff">8</span>(<span style="color:#a6e22e">SP</span>)
+   <span style="color:#f92672">...</span>
+   <span style="color:#ae81ff">0x0038</span> <span style="color:#ae81ff">00056</span> (<span style="color:#66d9ef">defer</span>.<span style="color:#66d9ef">go</span>:<span style="color:#ae81ff">6</span>)	<span style="color:#a6e22e">LEAQ</span>	<span style="color:#e6db74">&#34;&#34;</span>..<span style="color:#a6e22e">autotmp_1</span><span style="color:#f92672">+</span><span style="color:#ae81ff">8</span>(<span style="color:#a6e22e">SP</span>), <span style="color:#a6e22e">AX</span>
+   <span style="color:#ae81ff">0x003d</span> <span style="color:#ae81ff">00061</span> (<span style="color:#66d9ef">defer</span>.<span style="color:#66d9ef">go</span>:<span style="color:#ae81ff">6</span>)	<span style="color:#a6e22e">MOVQ</span>	<span style="color:#a6e22e">AX</span>, (<span style="color:#a6e22e">SP</span>)
+   <span style="color:#ae81ff">0x0041</span> <span style="color:#ae81ff">00065</span> (<span style="color:#66d9ef">defer</span>.<span style="color:#66d9ef">go</span>:<span style="color:#ae81ff">6</span>)	<span style="color:#a6e22e">CALL</span>	<span style="color:#a6e22e">runtime</span>.<span style="color:#a6e22e">deferprocStack</span>(<span style="color:#a6e22e">SB</span>)
+   <span style="color:#f92672">...</span>
+   <span style="color:#ae81ff">0x004b</span> <span style="color:#ae81ff">00075</span> (<span style="color:#66d9ef">defer</span>.<span style="color:#66d9ef">go</span>:<span style="color:#ae81ff">9</span>)	<span style="color:#a6e22e">CALL</span>	<span style="color:#a6e22e">runtime</span>.<span style="color:#a6e22e">deferreturn</span>(<span style="color:#a6e22e">SB</span>)
+   <span style="color:#ae81ff">0x0050</span> <span style="color:#ae81ff">000</span><span style="color:#ae81ff">80</span> (<span style="color:#66d9ef">defer</span>.<span style="color:#66d9ef">go</span>:<span style="color:#ae81ff">9</span>)	<span style="color:#a6e22e">MOVQ</span>	<span style="color:#ae81ff">64</span>(<span style="color:#a6e22e">SP</span>), <span style="color:#a6e22e">BP</span>
+   <span style="color:#ae81ff">0x0055</span> <span style="color:#ae81ff">000</span><span style="color:#ae81ff">85</span> (<span style="color:#66d9ef">defer</span>.<span style="color:#66d9ef">go</span>:<span style="color:#ae81ff">9</span>)	<span style="color:#a6e22e">ADDQ</span>	<span style="color:#960050;background-color:#1e0010">$</span><span style="color:#ae81ff">72</span>, <span style="color:#a6e22e">SP</span>
+   <span style="color:#ae81ff">0x0059</span> <span style="color:#ae81ff">000</span><span style="color:#ae81ff">89</span> (<span style="color:#66d9ef">defer</span>.<span style="color:#66d9ef">go</span>:<span style="color:#ae81ff">9</span>)	<span style="color:#a6e22e">RET</span>
+   <span style="color:#ae81ff">0x005a</span> <span style="color:#ae81ff">000</span><span style="color:#ae81ff">90</span> (<span style="color:#66d9ef">defer</span>.<span style="color:#66d9ef">go</span>:<span style="color:#ae81ff">6</span>)	<span style="color:#a6e22e">XCHGL</span>	<span style="color:#a6e22e">AX</span>, <span style="color:#a6e22e">AX</span>
+   <span style="color:#ae81ff">0x005b</span> <span style="color:#ae81ff">000</span><span style="color:#ae81ff">91</span> (<span style="color:#66d9ef">defer</span>.<span style="color:#66d9ef">go</span>:<span style="color:#ae81ff">6</span>)	<span style="color:#a6e22e">CALL</span>	<span style="color:#a6e22e">runtime</span>.<span style="color:#a6e22e">deferreturn</span>(<span style="color:#a6e22e">SB</span>)
+   <span style="color:#ae81ff">0x0060</span> <span style="color:#ae81ff">000</span><span style="color:#ae81ff">96</span> (<span style="color:#66d9ef">defer</span>.<span style="color:#66d9ef">go</span>:<span style="color:#ae81ff">6</span>)	<span style="color:#a6e22e">MOVQ</span>	<span style="color:#ae81ff">64</span>(<span style="color:#a6e22e">SP</span>), <span style="color:#a6e22e">BP</span>
+</code></pre></div><p>众所周知<code>call F</code>指令是 <code>push ip,esp</code> 加上<code>jump F</code>指令实现。也就是说，通过<code>CALL</code>调用的方法，它的物理SP寄存器就是存放的他caller的IP寄存器。</p>
+<p>由上面的代码可知,<code>0x005b 00091 (defer.go:6)	CALL	runtime.deferreturn(SB)</code> 这里传入的参数，是SP寄存器，其值为 第一层调用栈的<code>SP+8</code>，然后对这个值取地址-8后，得到第一层caller的<code>SP</code>,由于他CALL了一个函数，那么对这个<code>SP</code>-8 ,得到的是应该是他push进去的IP。这里地方IP应该是00080，然后把他-5，得到00075，这个值刚好是<code> 0x004b 00075 (defer.go:9)	CALL	runtime.deferreturn(SB)</code>这条语句的IP。</p>
+<p>妙啊，这里是一个递归方法！一直执行到defer没有值为止。</p>
+</p>
+          <p>29 Aug 2020
+            
+          </p>
+          
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col s3 m1">
+      
+        <a class="btn-floating btn-large waves-effect waves-light" href="https://soyum2222.github.io/getip/"><i class="mdi-navigation-arrow-back"></i></a>
+      
+      </div>
+      <div class="col s6 m10 center">&nbsp</div>
+      <div class="col s3 m1">
+      
+        <a class="btn-floating btn-large waves-effect waves-light" href="https://soyum2222.github.io/panic/"><i class="mdi-navigation-arrow-forward"></i></a>
+      
+      </div>
+    </div>
+
+  </div>
+</div>
+
+  <footer class="page-footer">
+    <div class="footer-copyright">
+      <div class="container">
+      © 2015 Copyright Text
+      <div class="right">Design <a class="grey-text text-lighten-4" href="http://pdevty.github.io/blog/">pdevty</a></div>
+      </div>
+    </div>
+  </footer>
+  <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+  <script src="https://soyum2222.github.io/js/materialize.min.js"></script>
+  <script src="https://soyum2222.github.io/js/init.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.6/highlight.min.js"></script>
+  <script>hljs.initHighlightingOnLoad();</script>
+  
+
+  </body>
+</html>
+
