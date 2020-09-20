@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<style>
+    .menu {
+    color : #eeeeee;
+    padding-right: 20px;
+    }
+
+</style>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=no"/>
+  <title>GO调度：part Ⅰ - OS 调度器</title>
+  <link href="https://soyum2222.github.io/css/materialize.min.css" type="text/css" rel="stylesheet" media="screen,projection"/>
+  <link href="https://soyum2222.github.io/css/style.css" type="text/css" rel="stylesheet" media="screen,projection"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.6/styles/default.min.css">
+  <style type="text/css">
+  
+    footer.page-footer{background-image: url(https://soyum2222.github.io/images/default.png);}
+  
+  </style>
+</head>
+<body>
+  <ul id="slide-out" class="side-nav">
+    <li><a href="https://soyum2222.github.io"><i class="mdi-action-home left"></i>Home<i class="mdi-hardware-keyboard-arrow-right right"></i></a></li>
+    <li><a href="https://soyum2222.github.io/categories"><i class="mdi-action-perm-media left"></i>Categories<i class="mdi-hardware-keyboard-arrow-right right"></i></a></li>
+    <li><a href="https://soyum2222.github.io/tags"><i class="mdi-action-loyalty left"></i>Tags<i class="mdi-hardware-keyboard-arrow-right right"></i></a></li>
+  </ul>
+  <div id="index-banner" class="parallax-container">
+    <div class="section no-pad-bot">
+        <div class="container">
+            
+            <h1 class="header center teal-text text-lighten-2">NOTHING</h1>
+            <div class="row center">
+                <h5 class="header col s12 light">好读码，不求甚解；每有会意，便欣然忘食。</h5>
+            </div>
+            <div style="padding-top: 150px;padding-left: 10px;">
+                
+                <a href="http://soyum2222.github.io" class="menu">HOME</a>
+                
+
+                
+                <a href="https://github.com/soyum2222" class="menu">GITHUB</a>
+                
+
+            </div>
+        </div>
+    </div>
+    <div class="parallax">
+        
+        <img src="https://soyum2222.github.io/images/default.png">
+        
+    </div>
+</div>
+
+
+
+<div class="container">
+  <div class="section">
+
+    <div class="row">
+      <div class="col s12">
+        <div class="card-panel">
+          <h4>GO调度：part Ⅰ - OS 调度器</h4>
+          <p>
+           
+          </p>
+          <p><p>翻译自 <a href="https://www.ardanlabs.com/blog/2018/08/scheduling-in-go-part1.html">https://www.ardanlabs.com/blog/2018/08/scheduling-in-go-part1.html</a></p>
+<h2 id="序言">序言</h2>
+<p>这是三篇系列文章中的第一篇，这个系列文章会提供对GO调度器语义背后的理解，这篇文章着重于OS调度器</p>
+<p>文章系列索引:</p>
+<p>1)<a href="https://www.ardanlabs.com/blog/2018/08/scheduling-in-go-part1.html">Scheduling In Go : Part I - OS Scheduler</a></p>
+<p>2)<a href="https://www.ardanlabs.com/blog/2018/08/scheduling-in-go-part2.html">Scheduling In Go : Part II - Go Scheduler</a></p>
+<p>3)<a href="https://www.ardanlabs.com/blog/2018/12/scheduling-in-go-part3.html">Scheduling In Go : Part III - Concurrency</a></p>
+<h2 id="导言">导言</h2>
+<p>GO 调度器的设计动机总是让你的多线程GO程序更加高效。这要感谢GO调度器对OS调度器的机械感知。
+但是，你的多线程go软件的设计和动机对调度器的工作方式没有机器感知，这都不重要。
+重要的是要有一个对OS和GO调度器如何工作有个代表性的理解，来正确的设计你的多线程软件。</p>
+<p>这篇由多个部分组成的文章将集中讨论调度程序的高级机制和语义。我将提供足够的细节，让你直观地看到事情是如何运作的，
+这样你就可以做出更好的工程决策。尽管对于多线程应用程序，您需要做的工程决策有很多内容，
+但是机制和语义是您所需的基础知识的关键部分。</p>
+<h2 id="os-调度器">OS 调度器</h2>
+<p>操作系统调度器是很复杂的。它们需要考虑它们所运行的硬件的规格，像多个处理器，<a href="http://frankdenneman.nl/2016/07/06/introduction-2016-numa-deep-dive-series">CPU缓存，NUMA等</a>。
+如果不懂这些知识，调度器将很难高效的工作。但是我们不深入讨论这些主题，还是可以从调度器的工作原理上学习到思想。</p>
+<p>你的程序就是机器指令的集合，需要被有序的执行，为了做到这一点，操作系统引入了线程这个概念。线程的工作就是有序的执行分配给他的指令，
+直到执行完后没有其他指令可以执行。这就是我为什么把线程叫做 “a path of execution”。</p>
+<p>你的每个程序运行都会创建一个Process,每个Process都会初始化一个线程。线程还可以创建更多的线程。
+每个线程彼此之间相互独立，调度的规则也是基于每个线程的优先级，不是基于Process的优先级。
+线程们可以并发运行（每个线程都在一个处理器内核上），也可以并行（彼此运行在不同的内核上）。
+线程还维护自己的状态，以保证安全，独立的执行本地的指令。</p>
+<p>OS调度器需要在有线程可以调度的时候确保内核有事情可以干。它还必须假设，所有的可以执行的线程都在同一时间执行。同时，它还需要优先执行
+优先级较高的线程，但是也要保证优先级低的线程不被饿死。调度器需要尽可能的用少的时间来做出优秀的决定，来减小调度延迟。</p>
+<p>有很多的算法可以实现这一点，我们也拥有很多的经验。要更好的理解这些，需要定义一些重要的概念。</p>
+<h2 id="执行指令">执行指令</h2>
+<p>程序计数器（PC），有时又叫指令指针（IP），它指向了线程下一次要执行的指令。在多处理器中，PC指向下一条指令，而不是当前指令</p>
+<h4 id="figure--1">Figure  1</h4>
+<p><img src="/images/92_figure1.jpeg" alt="IP"></p>
+<p><a href="https://www.slideshare.net/JohnCutajar/assembly-language-8086-intermediate">https://www.slideshare.net/JohnCutajar/assembly-language-8086-intermediate</a></p>
+<p>如果你曾经看过GO的堆栈，你应该注意到每行的末尾有一个十六进制的数字，像这样 +0x39 和这样 +0x72</p>
+<h4 id="listing-1">Listing 1</h4>
+<pre><code>goroutine 1 [running]:
+   main.example(0xc000042748, 0x2, 0x4, 0x106abae, 0x5, 0xa)
+       stack_trace/example1/example1.go:13 +0x39                 &lt;- LOOK HERE
+   main.main()
+       stack_trace/example1/example1.go:8 +0x72                  &lt;- LOOK HERE
+</code></pre><p>这些数字代表PC寄存器的值从当前方法顶部的偏移值。PC +0x39 表示如果程序没有发生恐慌，线程执行example方法中的下一条指令。
+PC + 0x75 表示当函数返回后，main方法将执行的吓一条指令。更重要的是，这个指针指向的指令的上一个指令，就是你当前正在执行的指令。</p>
+<p>看下下面这个程序，它就是上面堆栈的源码。</p>
+<h4 id="listing-2">Listing 2</h4>
+<pre><code>https://github.com/ardanlabs/gotraining/blob/master/topics/go/profiling/stack_trace/example1/example1.go
+
+func main() {
+    example(make([]string, 2, 4), &quot;hello&quot;, 10)
+}
+
+func example(slice []string, str string, i int) {
+   panic(&quot;Want stack trace&quot;)
+}
+</code></pre><p>PC 偏移 +0x38 表示example方法起始指令向下偏移57个字节（基于10进制）所得到的指令。在Listing 3 中，你可以从二进制中看到 example 的 objdump 。
+找到第12条指令，注意这条指令上面那条指令是在调用 panic</p>
+<h4 id="listing-3">Listing 3</h4>
+<pre><code>$ go tool objdump -S -s &quot;main.example&quot; ./example1
+TEXT main.example(SB) stack_trace/example1/example1.go
+func example(slice []string, str string, i int) {
+  0x104dfa0		65488b0c2530000000	MOVQ GS:0x30, CX
+  0x104dfa9		483b6110		CMPQ 0x10(CX), SP
+  0x104dfad		762c			JBE 0x104dfdb
+  0x104dfaf		4883ec18		SUBQ $0x18, SP
+  0x104dfb3		48896c2410		MOVQ BP, 0x10(SP)
+  0x104dfb8		488d6c2410		LEAQ 0x10(SP), BP
+	panic(&quot;Want stack trace&quot;)
+  0x104dfbd		488d059ca20000	LEAQ runtime.types+41504(SB), AX
+  0x104dfc4		48890424		MOVQ AX, 0(SP)
+  0x104dfc8		488d05a1870200	LEAQ main.statictmp_0(SB), AX
+  0x104dfcf		4889442408		MOVQ AX, 0x8(SP)
+  0x104dfd4		e8c735fdff		CALL runtime.gopanic(SB)
+  0x104dfd9		0f0b			UD2              &lt;--- LOOK HERE PC(+0x39)
+</code></pre><p>记住：PC寄存器的值是指向下一条指令，不是当前的指令。Listing 3 是一个在 amd64 基础上的一个很好的例子，改GO程序的线程按顺序指向指令。</p>
+<h2 id="线程状态">线程状态</h2>
+<p>另一个重要的概念是线程状态，它规定了线程在调度器在线程中扮演的角色。一个线程可以处于三个种状态中的一种：等待，可运行，正在运行。</p>
+<p><em>等待</em>：这个状态意味着线程是停止的并且正在等待某些东西才能继续。这种状态可以是，等待硬件（硬盘，网络），等待操作系统（系统调用），
+或者是同步调用（原子操作，互斥锁）。这种类型的延迟是导致性能差的根本原因。</p>
+<p><em>可运行</em>：这个状态意味着线程需要被调度到处理器上来执行分配给它的指令，如果你有很多线程都需要被调度，那么线程被调度就需要等待更长的时间。
+而且，随着更多的线程竞争，每个线程被调度所得到的时间都将被缩短。这种类型的延时也是导致性能差的原因。</p>
+<p><em>正在运行</em>：这种状态意味着线程已经被调度到了处理器上，并且正在执行指令。这是每个线程都想到达的状态。</p>
+<h2 id="工作类型">工作类型</h2>
+<p>线程有两种工作类型，一种是CPU密集型，一种是IO密集型。</p>
+<p><em>CPU密集型</em>：这种情况下线程永远不会处于等待状态。这种情况一直在进行计算。例如计算圆周率的线程就是CPU密集型的。</p>
+<p><em>IO密集型</em>：这是导致线程进入等待状态的原因。这种工作类型包括通过网络请求资源或者对操作系统进行系统调用，访问数据库，我认为还包含同步事件（互斥锁，原子操作），
+因为这些操作都会让线程进入等待状态</p>
+<h2 id="上下文切换">上下文切换</h2>
+<p>如果你在Linux，MAC，Windows上运行，那么你就是运行在抢占式调度的系统上。有几点很重要。第一，调度程序选择运行哪个线程是不可预测的。
+线程优先级和事件（例如从网络上接收数据）使得我们无法确定调度器将会选择何时以及如何调度。</p>
+<p>第二，永远不要靠自己的感觉来写代码，就算你这次很幸运的对了，但是无法保证你每次都是幸运的。如果应用程序中需要确定性，那么你必须控制线程的同步。</p>
+<p>在内核上线程切换的物理行为被称为上下文切换。调度器从内核中取出一个正在执行的线程，然后替换成一个准备运行的线程，就会发生上下文切换。
+从准备运行的线程队列中选择出一个线程进入正在运行状态。被取出的线程会进入回到准备运行状态（如果它任然可以运行），或者进入到等待状态（如果它被替换下来的原因是因为IO请求）。</p>
+<p>上下文切换是昂贵的，因为它需要时间在内核上做线程的交换。影响上下文切换的延时的因素有很多，但在<a href="https://eli.thegreenplace.net/2018/measuring-context-switching-and-memory-overheads-for-linux-threads/">1000到1500纳秒</a>
+之间都是合理的。考虑到硬件的每个核心每纳秒平均能执行<a href="https://www.youtube.com/watch?v=jEG4Qyo_4Bc&amp;feature=youtu.be&amp;t=266">12条指令</a>，
+一次上下文切换需要花费12K到18K的指令,本质上讲，你的程序在上下问切换的时候，失去了执行指令的能力。</p>
+<p>如果你的程序是IO密集型，那么上下文切换对你来说是有益的。一个线程从运行状态移动到了等待状态，那么就会有一个准备运行状态的线程顶上来。
+处理器核心保证一直在工作，这是调度工作中很重要的一点。在有可运行状态的线程的情况下，不要让处理器核心空闲下来。</p>
+<p>如果你的程序是CPU密集型，那么上下文切换就是性能噩梦。因为线程可以一直工作，上下文切换会停止线程的工作。这与IO密集型形成了鲜明对比。</p>
+<h2 id="少即是多">少即是多</h2>
+<p>上古时代处理器都只有一个核心，调度不会太复杂。因为你只有一个处理器，一个核心，同一时间你也只能执行一个线程。其思想就是定义一个调度
+周期，在这个周期内尝试执行所有的可运行的线程。没有问题：将调度周期除以需要执行的线程数。</p>
+<p>举个栗子，如果你定义了一个调度周期是1000ms（1秒），然后你有10个线程，那么每个线程得到100ms。如果你有100个线程，每个线程得到10ms。
+但是，当你有1000个线程整么办?给每个线程1ms的时间片?这是行不通的，因为这样上下文切换会非常频繁，上下文切换花费的时间会非常多。</p>
+<p>你需要限制最小时间片。最后一种情况，如果最小时间片是10ms，你又有1000个线程，那么调度周期需要增大到10000ms（10秒）。
+如果有10000个线程，那么现在的调度程序周期是100000ms(100秒)。10000个线程，最小时间片是10ms，在这个例子中，调度器完成一次完整的调度需要花费100秒。</p>
+<p>一个很简单的道理，调度器在做决定时，需要考虑非常多的事情。当线程非常多，并且发生了IO事件，就会出现混乱的行为。</p>
+<p>这就是为什么要叫“少即是多”。在准备状态的线程数量越少，就意味着少量的调度，每个线程获得的时间片更多。在准备状态的线程数越多，
+意味着每个线程获得的时间片越少。也就是说在单位时间内，你完成的工作也更少了。</p>
+<h2 id="找到平衡点">找到平衡点</h2>
+<p>你需要在内核数量，线程数量之间找到一种平衡，你需要为你的应用程序获得最佳吞吐量。线程池会是管理这种平衡的很好的方法。我将会在 part Ⅱ 像你展示。
+GO 不需要这样做，我认为这对于GO简化多线程应用开发很有利。</p>
+<p>在写GO之前，我写过C++，在NT.上用过C#。在该操作系统下 IOCP 完成端口 线程池对多线程软件的编写很重要。作为一名工程师，你需要计算出你需要多少个线程池，
+线程池的最大线程数量。</p>
+<p>当编写与数据库通信的Web服务时，每个内核3线程的神奇数量似乎总是在NT上提供最佳吞吐量。
+换句话说，每个内核3个线程可以最大程度地减少上下文切换的延迟成本，同时可以最大程度地延长内核的执行时间。
+创建IOCP线程池时，我知道对于主机上标识的每个内核，最少要有1个线程，最多要有3个线程。</p>
+<p>如果我在每个内核上分配2个线程，完成任务反而需要更长的时间，因为我有空闲的时间（可能是因为IO访问等原因，文中没有说清楚），本可以去完成其他工作。
+如果我在每个内核上分配4个线程，完成任务花费的时间会更长，因为会有大量的上下文切换延时。每个内核上3个线程，似乎是NT.上一个神奇的数字。</p>
+<p>如果你的服务在做许多不同类型的工作整么办?这可能会产生很多不同的延时。可能还会创建很多优先级不同的事件需要处理。在有不同负载的这种情况下应该不可能找到一个魔数。
+当使用线程池调优服务性能时，要找到正确的配置可能会变得非常复杂。</p>
+<h2 id="高速缓存">高速缓存</h2>
+<p>从主存访问数据有很高的延迟（100到300个时钟周期）处理器核心有本地缓存来保持数据靠近所需要它的硬件线程。从缓存访问数据的成本要低一些（3到40个时钟周期）
+这取决于被访问的缓存。今天，性能的一方面就是处理器如何高效的访问这些数据减少延迟。编写多线程应用需要考虑到缓存机制。</p>
+<h4 id="figure-2">Figure 2</h4>
+<p><img src="/images/92_figure2.png" alt=""></p>
+<p>主存和处理器之间交换数据使用高速缓存。高速缓存是在主存和缓存系统之间交换数据的64位内存块。每个核心都有自己的高速缓存的拷贝副本，
+这意味着硬件使用<a href="https://www.ardanlabs.com/blog/2017/06/design-philosophy-on-data-and-semantics.html">值语义</a>。这就是为什么在多线程
+应用中内存突变会照成性能灾难。</p>
+<p>当多个并行运行的线程正在访问相同的数据值，甚至是相邻的数据值时，它们将访问同一高速缓存上的数据。
+不同内核上运行的任何线程都将获得同一高速缓存的副本。</p>
+<h4 id="figure-3">Figure 3</h4>
+<p><img src="/images/92_figure3.png" alt=""></p>
+<p>如果一个核心上的一个线程，改变了自己的高速缓存副本中的值，那么就要通过硬件，告诉其他核心，把自己这个副本标记为dirty。
+当一个线程读写访问到dirty的缓存副本时，就要去主存重新获取缓存副本（100到300个时钟周期）。</p>
+<p>也许在2核处理器上这并不是什么大问题，但是如果在32核处理器上并行运行32个线程访问和改变同一个高速缓存的数据呢?
+如果系统有2个物理处理器，每个16个核心怎么办?这更恼火，因为处理器到处理器之间的通讯会加大延时。
+应用程序在内存中抖动，性能将非常糟糕，而且你很可能不知道原因。</p>
+<p>这被称为<a href="https://youtu.be/WDIkqP4JbkE">缓存一致性问题</a>，也引入了像错误共享这样的问题。在编写可能会改变共享状态的多线程应用程序时，必须考虑缓存系统。</p>
+<h2 id="调度方案">调度方案</h2>
+<p>思考下面几个有趣的问题。</p>
+<p>你运行了一个应用程序，这个应用程序创建了一个主线程运行在核心1上。这个线程开始执行指令，因为需要数据，所以去检索了高速缓存。然后
+线程决定创建一个新线程来并发处理一些事情。问题如下。</p>
+<p>一旦线程创建并准备运行，调度程序应该:</p>
+<p>1.把主线程从核心1上切换下来?这样做可以提高性能，正好新线程需要相同的缓存。但是主线程的没有执行满它应该得到的时间片。</p>
+<p>2.线程是否等待核心1变得可用，等待主线程的时间片完成?该线程没有运行，但启动时不用从新获取数据。</p>
+<ol start="3">
+<li>线程是否等待下一个可用内核?这将意味着所选核心的缓存线将被刷新、检索和复制，
+从而导致延迟。但是，线程会启动得更快，主线程可以完成它的时间片。</li>
+</ol>
+<p>因吹司挺? 这些有趣的问题是OS调度器在做出调度时候需要考虑的，幸运的是，我不用考虑。但是我可以告诉你的是，如果有空闲的内核，它就会使用。</p>
+<h2 id="结论">结论</h2>
+<p>这篇文章的第一部分提供了在编写多线程应用程序时必须考虑的线程和操作系统调度器。
+这些也是Go调度器要考虑的事情。在下一篇文章中，我将描述Go调度器的语义以及它们如何与这些信息相关联。
+最后，您将通过运行两个程序看到所有这些操作。</p>
+</p>
+          <p>20 Sep 2020
+            
+          </p>
+          
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col s3 m1">
+      
+        <a class="btn-floating btn-large waves-effect waves-light" href="https://soyum2222.github.io/monkey/"><i class="mdi-navigation-arrow-back"></i></a>
+      
+      </div>
+      <div class="col s6 m10 center">&nbsp</div>
+      <div class="col s3 m1">
+      
+        <a class="btn-floating btn-large disabled"><i class="mdi-navigation-arrow-forward"></i></a>
+      
+      </div>
+    </div>
+
+  </div>
+</div>
+
+  <footer class="page-footer">
+    <div class="footer-copyright">
+      <div class="container">
+      © 2015 Copyright Text
+      <div class="right">Design <a class="grey-text text-lighten-4" href="http://pdevty.github.io/blog/">pdevty</a></div>
+      </div>
+    </div>
+  </footer>
+  <script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+  <script src="https://soyum2222.github.io/js/materialize.min.js"></script>
+  <script src="https://soyum2222.github.io/js/init.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/8.6/highlight.min.js"></script>
+  <script>hljs.initHighlightingOnLoad();</script>
+  
+
+  </body>
+</html>
+

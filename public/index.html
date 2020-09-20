@@ -65,20 +65,30 @@
     
     <div class="col m4 s12">
         <div class="card-panel">
+            <h4><a href="https://soyum2222.github.io/scheduling1/">GO调度：part Ⅰ - OS 调度器</a></h4>
+            <p>
+                
+            </p>
+            <p>翻译自 https://www.ardanlabs.com/blog/2018/08/scheduling-in-go-part1.html
+序言 这是三篇系列文章中的第一篇，这个系列文章会提供对GO调度器语义背后的理解，这篇文章着重于OS调度器
+文章系列索引:
+1)Scheduling In Go : Part I - OS Scheduler</p>
+            <p>
+                20 Sep 2020
+                
+            </p>
+        </div>
+    </div>
+    
+    
+    <div class="col m4 s12">
+        <div class="card-panel">
             <h4><a href="https://soyum2222.github.io/monkey/">go 中的 Monkey Patching</a></h4>
             <p>
                 
             </p>
             <p>翻译自 https://bou.ke/blog/monkey-patching-in-go/
-很多人认为 monkey Patching 只能在动态语言中，像 Ruby 和 Python,但是并不是这样,计算机是一种愚蠢的机器, 我们始终能让他做我们所想的事情！让我们看下Go函数是如何工作的，以及如何在运行时修改它。这篇文章会使用大量的 intel 汇编， 所以我假设你已经掌握，或者在阅读时会参考查阅相关资料。
-如果你它如何工作的不感兴趣，并且你只想使用monkey 补丁 ，那么你可以找到这个库
-让我看下反汇编后会是什么样子。
-package main func a() int { return 1 } func main() { print(a()) } 通过Hopper编译后，我们看到上诉代码生成了这样的汇编。
-我将参考上面图片的左边展示的各种指令的地址。
-我们的代码从main.main 开始，指令0x2010 到 0x2026 设置了栈。你可以通过这里获得更多关于此的信息。此文中，我将忽视这段代码。
-0x202a处是在调用函数 main.a ，0x2000处 只是简单的把0x1移动到栈上 然后返回，0x202f到0x2037 则是将该值传递给函数runtime.printint。
-非常简单！现在让我看下一个函数的值在go中是如何实现的。
-函数值在GO中的机制 package main import ( &quot;fmt&quot; &quot;unsafe&quot; ) func a() int { return 1 } func main() { f := a fmt.</p>
+很多人认为 monkey Patching 只能在动态语言中，像 Ruby 和 Python,但是并不是这样,计算机是一种愚蠢的机器, 我们始终能让他做我们所想的事情！让我们看下Go函数是如何工作的，以及如何在运行时修改它。这篇文章会使用大量的 intel 汇编， 所以我假设你已经掌握，或者在阅读时会参考查阅相关资料。</p>
             <p>
                 5 Sep 2020
                 
@@ -95,23 +105,7 @@ package main func a() int { return 1 } func main() { print(a()) } 通过Hopper�
             </p>
             <p>事情起因是因为上班无聊水群（此处领导不可见），发现群里有小伙伴提了个关于 recover 捕获 panic 的问题
 代码1:
-func main() { defer recover_func() panic(&quot;panic&quot;) } func recover_func() { func() { err := recover() if err != nil { fmt.Println(&quot;recover&quot;) fmt.Println(err) } }() } //out put: panic: panic 代码2
-func main() { defer recover_func() panic(&quot;panic&quot;) } func recover_func() { err := recover() if err !</p>
-            <p>
-                29 Aug 2020
-                
-            </p>
-        </div>
-    </div>
-    
-    
-    <div class="col m4 s12">
-        <div class="card-panel">
-            <h4><a href="https://soyum2222.github.io/defer/">defer 源码阅读 （go 1.13）</a></h4>
-            <p>
-                
-            </p>
-            <p>直接上代码  package main import &quot;fmt&quot; func main() { defer func() { fmt.Println(&quot;defer&quot;) }() } 反编译  &quot;&quot;.main STEXT size=113 args=0x0 locals=0x48 0x0000 00000 (defer.go:5)	TEXT	&quot;&quot;.main(SB), ABIInternal, $72-0 0x0000 00000 (defer.go:5)	MOVQ	TLS, CX 0x0009 00009 (defer.go:5)	MOVQ	(CX)(TLS*2), CX 0x0010 00016 (defer.go:5)	CMPQ	SP, 16(CX) 0x0014 00020 (defer.</p>
+func main() { defer recover_func() panic(&quot;panic&quot;) } func recover_func() { func() { err := recover() if err !</p>
             <p>
                 29 Aug 2020
                 
@@ -125,22 +119,28 @@ func main() { defer recover_func() panic(&quot;panic&quot;) } func recover_func(
     
     <div class="col m4 s12">
         <div class="card-panel">
+            <h4><a href="https://soyum2222.github.io/defer/">defer 源码阅读 （go 1.13）</a></h4>
+            <p>
+                
+            </p>
+            <p>直接上代码  package main import &quot;fmt&quot; func main() { defer func() { fmt.</p>
+            <p>
+                29 Aug 2020
+                
+            </p>
+        </div>
+    </div>
+    
+    
+    <div class="col m4 s12">
+        <div class="card-panel">
             <h4><a href="https://soyum2222.github.io/getip/">Golang 获取 IP 寄存器内容</a></h4>
             <p>
                 
             </p>
             <p>之前用C写过一个调度器，想用Go也写一次，正好最近在学习Plan9汇编，趁机巩固一下。
 先理清楚基本思路。因为不能直接对IP寄存器做操作，所以无法直接通过 MOVQ IP，AX 这种方式得到IP的值。
-但是总所周知，CALL 指令等价于 PUSH IP ，jmp XXX 。所以我们可以通过CALL指令过通过SP寄存器拿到IP的值。
-基本思路很简单
-但是和C语言有一些细微的差别
-C版本
-int64 getrip() { register int64 ip; asm volatile ( &quot;movq 0x10(%%rsp), %0\n\t&quot; :&quot;=r&quot;(ip) ); return ip; } Go plan9 版本
-TEXT ·getip(SB),$0 MOVQ (SP) ,AX MOVQ AX,ret+0(FP) RET C版本要比GO版本SP多偏移一个8字节。
-为啥呢? 我照着C版本SP偏移8字节取拿IP，结果就是debug了一个下午。
-反编译两个版本看一下
-C
-getrip: .LFB0: .</p>
+但是总所周知，CALL 指令等价于 PUSH IP ，jmp XXX 。所以我们可以通过CALL指令过通过SP寄存器拿到IP的值。</p>
             <p>
                 27 Aug 2020
                 

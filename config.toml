@@ -7,7 +7,7 @@ baseurl = "https://soyum2222.github.io"
 MetaDataFormat = "toml"
 paginate = 9 # To specify a multiple of 3
 copyright = "© 2015 Copyright Text"
-summaryLength = 50
+summaryLength = 10
 [params]
   description = "好读码，不求甚解；每有会意，便欣然忘食。" # optional
   home = "http://soyum2222.github.io"
